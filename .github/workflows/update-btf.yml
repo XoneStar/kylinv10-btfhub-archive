@@ -1,0 +1,168 @@
+name: Update Kylin V10 BTF archive
+
+on:
+  # GitHub cron is UTC. 17:00 UTC == 01:00 Asia/Shanghai (next day).
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: "Comma-separated versions (empty = all)"
+        required: false
+        default: ""
+      arches:
+        description: "Comma-separated architectures (empty = all)"
+        required: false
+        default: ""
+      repos:
+        description: "Comma-separated repositories: updates,base (empty = both)"
+        required: false
+        default: ""
+      max_new:
+        description: "Maximum new kernels to process in this run"
+        required: false
+        default: "10"
+      dry_run:
+        description: "Only discover packages; do not download or commit"
+        type: boolean
+        required: false
+        default: false
+      force:
+        description: "Regenerate even when a package is already archived"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kylin-v10-btf-update
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo apt-get clean
+          df -h /
+
+      - name: Install RPM and BTF toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm cpio dwarves xz-utils
+          pahole --version
+          rpm --version
+          xz --version
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+      - name: Discover and build BTF files
+        id: update
+        continue-on-error: true
+        env:
+          INPUT_VERSIONS: ${{ github.event.inputs.versions }}
+          INPUT_ARCHES: ${{ github.event.inputs.arches }}
+          INPUT_REPOS: ${{ github.event.inputs.repos }}
+          INPUT_MAX_NEW: ${{ github.event.inputs.max_new }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+          args=(
+            --repo-root .
+            --report-json "$RUNNER_TEMP/btf-report.json"
+            --report-md "$RUNNER_TEMP/btf-report.md"
+          )
+          if [[ -n "${INPUT_VERSIONS:-}" ]]; then
+            args+=(--versions "$INPUT_VERSIONS")
+          fi
+          if [[ -n "${INPUT_ARCHES:-}" ]]; then
+            args+=(--arches "$INPUT_ARCHES")
+          fi
+          if [[ -n "${INPUT_REPOS:-}" ]]; then
+            args+=(--repos "$INPUT_REPOS")
+          fi
+          if [[ -n "${INPUT_MAX_NEW:-}" ]]; then
+            args+=(--max-new "$INPUT_MAX_NEW")
+          fi
+          if [[ "${INPUT_DRY_RUN:-false}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          if [[ "${INPUT_FORCE:-false}" == "true" ]]; then
+            args+=(--force)
+          fi
+          python -I scripts/update_btf.py "${args[@]}"
+
+      - name: Add report to job summary
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/btf-report.md" ]]; then
+            cat "$RUNNER_TEMP/btf-report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Commit and push new BTF files
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ ! -d .git ]]; then
+            echo "Repository was not checked out; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -d kylin ]]; then
+            git add --all -- kylin
+          fi
+          if git diff --cached --quiet; then
+            echo "No archive changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(btf): update Kylin V10 BTF archive"
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash && git push; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Unable to push after three attempts." >&2
+          exit 1
+
+      - name: Upload run report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btf-update-report
+          path: |
+            ${{ runner.temp }}/btf-report.json
+            ${{ runner.temp }}/btf-report.md
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Fail when packages or metadata could not be processed
+        if: steps.update.outcome == 'failure'
+        run: |
+          echo "The update step reported failures; see the job summary and artifact." >&2
+          exit 1

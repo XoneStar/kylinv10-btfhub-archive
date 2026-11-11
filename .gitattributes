@@ -1,0 +1,4 @@
+# BTF archives are binary artifacts; never apply text conversion.
+*.tar.xz binary
+*.btf binary
+*.rpm binary
