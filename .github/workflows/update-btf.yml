@@ -1,9 +1,9 @@
 name: Update Kylin V10 BTF archive
 
 on:
-  # GitHub cron is UTC. 17:00 UTC == 01:00 Asia/Shanghai (next day).
+  # GitHub cron is UTC. Sunday 17:00 UTC == Monday 01:00 Asia/Shanghai.
   schedule:
-    - cron: "0 17 * * *"
+    - cron: "0 17 * * 0"
   workflow_dispatch:
     inputs:
       versions:
