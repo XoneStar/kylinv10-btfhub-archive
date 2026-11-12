@@ -22,6 +22,10 @@ on:
         description: "Maximum new kernels to process in this run"
         required: false
         default: "10"
+      concurrency:
+        description: "Packages processed in parallel (1-8)"
+        required: false
+        default: "3"
       dry_run:
         description: "Only discover packages; do not download or commit"
         type: boolean
@@ -87,6 +91,7 @@ jobs:
           INPUT_ARCHES: ${{ github.event.inputs.arches }}
           INPUT_REPOS: ${{ github.event.inputs.repos }}
           INPUT_MAX_NEW: ${{ github.event.inputs.max_new }}
+          INPUT_CONCURRENCY: ${{ github.event.inputs.concurrency }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_FORCE: ${{ github.event.inputs.force }}
         run: |
@@ -107,6 +112,9 @@ jobs:
           fi
           if [[ -n "${INPUT_MAX_NEW:-}" ]]; then
             args+=(--max-new "$INPUT_MAX_NEW")
+          fi
+          if [[ -n "${INPUT_CONCURRENCY:-}" ]]; then
+            args+=(--concurrency "$INPUT_CONCURRENCY")
           fi
           if [[ "${INPUT_DRY_RUN:-false}" == "true" ]]; then
             args+=(--dry-run)

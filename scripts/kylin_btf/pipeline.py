@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import time
 from collections.abc import Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,6 +39,7 @@ class RunOptions:
     arches: Sequence[str] = config.ARCHES
     repos: Sequence[str] = config.REPOS
     max_new: int = config.DEFAULT_MAX_NEW
+    concurrency: int = config.DEFAULT_CONCURRENCY
     dry_run: bool = False
     force: bool = False
     work_dir: Path | None = None
@@ -88,50 +90,92 @@ def run(options: RunOptions) -> RunReport:
 
     deadline = time.monotonic() + options.time_budget_minutes * 60.0
     pending = list(selection.pending)
-    for index, candidate in enumerate(pending):
-        remaining = deadline - time.monotonic()
-        if remaining < _RESERVED_SECONDS:
-            report.deferred.extend(_candidate_row(item) for item in pending[index:])
-            LOGGER.warning(
-                "time budget reached; deferring %d package(s)",
-                len(pending) - index,
-            )
-            break
-        try:
-            updated_manifest, row = _process_candidate(
-                candidate, options, manifest, toolchain
-            )
-        except Exception as exc:
-            LOGGER.exception(
-                "failed to process %s/%s/%s",
-                candidate.version,
-                candidate.arch,
-                candidate.filename,
-            )
-            report.failures.append(
-                {
-                    **_candidate_row(candidate),
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
-            continue
-
-        # Persist the manifest immediately so a later crash cannot lose the
-        # record of BTF files that are already written to the work tree.
-        try:
-            updated_manifest.save()
-        except OSError as exc:
-            raise PipelineError(f"cannot save manifest: {exc}") from exc
-        manifest = updated_manifest
-        report.processed.append(row)
-        LOGGER.info(
-            "archived %s (%s)",
-            row["btf"],
-            human_size(int(row["btf_size"])),
-        )
+    manifest = _process_pending(pending, options, manifest, toolchain, report, deadline)
 
     report.finish()
     return report
+
+
+@dataclass(frozen=True)
+class _Outcome:
+    status: str
+    source_key: str | None = None
+    entry: dict[str, object] | None = None
+    row: dict[str, object] | None = None
+    error: BaseException | None = None
+
+
+def _process_pending(
+    pending: Sequence[Candidate],
+    options: RunOptions,
+    manifest: Manifest,
+    toolchain: Toolchain,
+    report: RunReport,
+    deadline: float,
+) -> Manifest:
+    workers = max(1, min(options.concurrency, len(pending)))
+    LOGGER.info("processing %d package(s) with %d worker(s)", len(pending), workers)
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="btf") as pool:
+        futures = {
+            pool.submit(_work, candidate, options, toolchain, deadline): candidate
+            for candidate in pending
+        }
+        for future in as_completed(futures):
+            candidate = futures[future]
+            outcome = future.result()
+            if outcome.status == "deferred":
+                report.deferred.append(_candidate_row(candidate))
+                continue
+            if outcome.status == "failed":
+                report.failures.append(
+                    {
+                        **_candidate_row(candidate),
+                        "error": (f"{type(outcome.error).__name__}: {outcome.error}"),
+                    }
+                )
+                continue
+
+            assert outcome.source_key and outcome.entry and outcome.row
+            try:
+                updated = manifest.with_entry(outcome.source_key, outcome.entry)
+                updated.save()
+            except OSError as exc:
+                raise PipelineError(f"cannot save manifest: {exc}") from exc
+            manifest = updated
+            report.processed.append(outcome.row)
+            LOGGER.info(
+                "archived %s (%s)",
+                outcome.row["btf"],
+                human_size(int(outcome.row["btf_size"])),
+            )
+
+    if report.deferred:
+        LOGGER.warning(
+            "time budget reached; deferred %d package(s) to the next run",
+            len(report.deferred),
+        )
+    return manifest
+
+
+def _work(
+    candidate: Candidate,
+    options: RunOptions,
+    toolchain: Toolchain,
+    deadline: float,
+) -> _Outcome:
+    if deadline - time.monotonic() < _RESERVED_SECONDS:
+        return _Outcome(status="deferred")
+    try:
+        source_key, entry, row = _process_candidate(candidate, options, toolchain)
+    except Exception as exc:
+        LOGGER.exception(
+            "failed to process %s/%s/%s",
+            candidate.version,
+            candidate.arch,
+            candidate.filename,
+        )
+        return _Outcome(status="failed", error=exc)
+    return _Outcome(status="ok", source_key=source_key, entry=entry, row=row)
 
 
 def _discover(
@@ -170,9 +214,8 @@ def _discover(
 def _process_candidate(
     candidate: Candidate,
     options: RunOptions,
-    manifest: Manifest,
     toolchain: Toolchain,
-) -> tuple[Manifest, dict[str, object]]:
+) -> tuple[str, dict[str, object], dict[str, object]]:
     work_root = _prepare_work_root(options)
     _check_free_disk(work_root, candidate)
     work = Path(
@@ -229,7 +272,7 @@ def _process_candidate(
             "btf_size": entry["btf_size"],
             "method": method,
         }
-        return manifest.with_entry(candidate.source_key, entry), row
+        return candidate.source_key, entry, row
     finally:
         if options.keep_temp:
             LOGGER.info("keeping work directory %s", work)

@@ -50,6 +50,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=config.DEFAULT_MAX_NEW,
         help=f"maximum packages to process per run (default: {config.DEFAULT_MAX_NEW})",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=config.DEFAULT_CONCURRENCY,
+        help=(
+            "packages processed in parallel, 1-"
+            f"{config.MAX_CONCURRENCY} (default: {config.DEFAULT_CONCURRENCY})"
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true", help="discover only")
     parser.add_argument(
         "--force", action="store_true", help="regenerate even if already archived"
@@ -100,6 +109,10 @@ def main(argv: list[str] | None = None) -> int:
     _validate_choices(args.repos, config.REPOS, "repo(s)")
     if args.max_new < 0:
         raise SystemExit("--max-new must be >= 0")
+    if not 1 <= args.concurrency <= config.MAX_CONCURRENCY:
+        raise SystemExit(
+            f"--concurrency must be between 1 and {config.MAX_CONCURRENCY}"
+        )
     if args.time_budget_minutes <= 0:
         raise SystemExit("--time-budget-minutes must be > 0")
 
@@ -109,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
         arches=tuple(args.arches),
         repos=tuple(args.repos),
         max_new=args.max_new,
+        concurrency=args.concurrency,
         dry_run=args.dry_run,
         force=args.force,
         work_dir=args.work_dir,

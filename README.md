@@ -30,7 +30,7 @@ compressed and uncompressed BTF checksums.
 ## Automated updates
 
 [`.github/workflows/update-btf.yml`](.github/workflows/update-btf.yml) runs every
-day at **01:00 Asia/Shanghai** (`0 17 * * *` UTC). It:
+Monday at **01:00 Asia/Shanghai** (`0 17 * * 0` UTC). It:
 
 1. Reads the `repodata` primary metadata for every configured
    version/architecture/repository.
@@ -58,8 +58,10 @@ https://update.cs2c.com.cn/NS/V10/{version}/os/adv/lic/{repo}/{arch}/debug/
 
 The run is incremental and bounded: `--max-new` defaults to 10 kernels per run,
 and the job stops starting new kernels after 330 minutes so large backlogs are
-spread over several days. The initial backlog is roughly 400 kernels; raise
-`max_new` on a manual run to catch up faster. Trigger a manual run from
+spread over several days. Packages are processed 3 at a time by default
+(`--concurrency`, 1-8): downloads, extraction and xz compression overlap, so
+raise `max_new` when you want a manual catch-up run. The initial backlog is
+roughly 400 kernels. Trigger a manual run from
 **Actions → Update Kylin V10 BTF archive → Run workflow**; `dry_run` lists
 pending kernels without downloading anything.
 
@@ -86,6 +88,7 @@ Useful options:
 --arches x86_64              limit architectures
 --repos updates              skip base repositories
 --max-new N                  cap kernels processed this run
+--concurrency N              packages processed in parallel (default 3, max 8)
 --force                      regenerate already archived kernels
 --work-dir DIR               store temporary RPM/vmlinux data outside /tmp
 --report-json/--report-md    write machine/human readable reports
