@@ -12,9 +12,11 @@ REPO_PATH_TEMPLATE = "/NS/V10/{version}/os/adv/lic/{repo}/{arch}/debug/"
 VERSIONS = (
     "V10.0",
     "V10.1",
+    "V10.4-HPC",
     "V10SP1",
     "V10SP1.1",
     "V10SP2",
+    "V10SP2-CTYUN",
     "V10SP3",
     "V10SP3-2403",
     "V10SP3.1",
