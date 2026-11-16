@@ -43,7 +43,7 @@ Monday at **01:00 Asia/Shanghai** (`0 17 * * 0` UTC). It:
 Configured matrix:
 
 - Versions: `V10.0`, `V10.1`, `V10SP1`, `V10SP1.1`, `V10SP2`, `V10SP3`,
-  `V10SP3.1`
+  `V10SP3-2403`, `V10SP3.1`
 - Architectures: `x86_64`, `aarch64`, `loongarch64`
 - Repositories: `updates` and `base`
 
