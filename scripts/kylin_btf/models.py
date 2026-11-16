@@ -83,7 +83,7 @@ class Candidate:
             PurePosixPath(
                 config.ARCHIVE_ROOT,
                 self.archive_arch,
-                f"{self.kernel_version}{config.ARCHIVE_SUFFIX}",
+                f"{self.kernel_version}.{self.arch}{config.ARCHIVE_SUFFIX}",
             )
         )
 

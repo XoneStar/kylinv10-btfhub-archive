@@ -8,20 +8,20 @@ The BTFhub Archive repository provides BTF files for those published kernels tha
 kylin/V10/
 ├── manifest.json                  # source RPM → BTF provenance and checksums
 ├── x86_64/
-│   └── 4.19.90-52.70.v2207.ky10.btf.tar.xz
+│   └── 4.19.90-52.70.v2207.ky10.x86_64.btf.tar.xz
 └── arm64/
-    └── 4.19.90-52.70.v2207.ky10.btf.tar.xz
+    └── 4.19.90-52.70.v2207.ky10.aarch64.btf.tar.xz
 ```
 
 `aarch64` packages are stored under `arm64/`; every other architecture keeps
 its upstream name.
 
 Each file is a tar archive compressed with xz; the archive contains a single
-`{kernel-version}.btf` member. The matching kernel version is encoded in the
-filename:
+`{kernel-version}.{arch}.btf` member. File and member names keep the upstream
+architecture name (`aarch64`), while the directory uses `arm64/`:
 
 ```bash
-tar -xJf 4.19.90-52.70.v2207.ky10.btf.tar.xz
+tar -xJf 4.19.90-52.70.v2207.ky10.aarch64.btf.tar.xz
 ```
 
 `manifest.json` records the source RPM URL, the repository sha256, and both

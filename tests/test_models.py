@@ -77,7 +77,7 @@ def test_candidate_archive_path_is_inside_archive_root():
     )
     assert candidate.kernel_version == "4.19.90-52.70.v2207.ky10"
     assert candidate.archive_relpath == str(
-        PurePosixPath("kylin/V10/x86_64/4.19.90-52.70.v2207.ky10.btf.tar.xz")
+        PurePosixPath("kylin/V10/x86_64/4.19.90-52.70.v2207.ky10.x86_64.btf.tar.xz")
     )
     assert candidate.source_key == (
         "V10SP3/x86_64/updates/kernel-debuginfo-4.19.90-52.70.v2207.ky10.x86_64.rpm"
@@ -94,5 +94,5 @@ def test_aarch64_packages_are_stored_under_arm64():
     )
     assert candidate.archive_arch == "arm64"
     assert candidate.archive_relpath == str(
-        PurePosixPath("kylin/V10/arm64/4.19.90-52.70.v2207.ky10.btf.tar.xz")
+        PurePosixPath("kylin/V10/arm64/4.19.90-52.70.v2207.ky10.aarch64.btf.tar.xz")
     )

@@ -238,7 +238,8 @@ def _process_candidate(
         raw_hash = sha256_file(raw_btf)
 
         target = ensure_within(options.repo_root.resolve(), candidate.archive_relpath)
-        pack_btf(raw_btf, target, f"{candidate.kernel_version}.btf")
+        member_name = f"{candidate.kernel_version}.{candidate.arch}.btf"
+        pack_btf(raw_btf, target, member_name)
 
         entry = {
             "version": candidate.version,
@@ -253,7 +254,7 @@ def _process_candidate(
             "btf": candidate.archive_relpath,
             "btf_container": "tar",
             "btf_compression": "xz",
-            "btf_member": f"{candidate.kernel_version}.btf",
+            "btf_member": member_name,
             "btf_size": target.stat().st_size,
             "btf_sha256": sha256_file(target),
             "btf_uncompressed_size": raw_size,
