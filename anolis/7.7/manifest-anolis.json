@@ -1,0 +1,27 @@
+{
+  "entries": {
+    "7.7/x86_64/Plus/kernel-debuginfo-4.19.91-28.2.an7.x86_64.rpm": {
+      "arch": "x86_64",
+      "btf": "anolis/7.7/x86_64/4.19.91-28.2.an7.x86_64.btf.tar.xz",
+      "btf_compression": "xz",
+      "btf_container": "tar",
+      "btf_member": "4.19.91-28.2.an7.x86_64.btf",
+      "btf_method": "embedded",
+      "btf_sha256": "21b4eb6712210a562ff112388e7635597c8a4a9e17b7d44783953fa1a2cb58d3",
+      "btf_size": 754800,
+      "btf_uncompressed_sha256": "eeace9c456031c5cc0d96f66ca8a3a62fbc6d1380b1dca10e8b59bb4f7e8811b",
+      "btf_uncompressed_size": 2973821,
+      "generated_at": "2026-11-26T12:05:24+00:00",
+      "kernel_version": "4.19.91-28.2.an7",
+      "package": "kernel-debuginfo-4.19.91-28.2.an7.x86_64.rpm",
+      "package_sha256": "22bac04a47324cdb9fe789f63270b0b1bee1773a70d4acbca8cd67afce95a556",
+      "package_size": 464554504,
+      "package_url": "https://mirrors.openanolis.cn/anolis/7.7/Plus/x86_64/debug/Packages/kernel-debuginfo-4.19.91-28.2.an7.x86_64.rpm",
+      "pahole": "v1.25",
+      "repo": "Plus",
+      "source_checksum": "22bac04a47324cdb9fe789f63270b0b1bee1773a70d4acbca8cd67afce95a556",
+      "version": "7.7"
+    }
+  },
+  "schema": 1
+}
