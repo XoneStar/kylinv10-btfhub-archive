@@ -90,7 +90,7 @@ def run(options: RunOptions) -> RunReport:
 
     deadline = time.monotonic() + options.time_budget_minutes * 60.0
     pending = list(selection.pending)
-    manifest = _process_pending(pending, options, manifest, toolchain, report, deadline)
+    manifest = process_pending(pending, options, manifest, toolchain, report, deadline)
 
     report.finish()
     return report
@@ -105,7 +105,7 @@ class _Outcome:
     error: BaseException | None = None
 
 
-def _process_pending(
+def process_pending(
     pending: Sequence[Candidate],
     options: RunOptions,
     manifest: Manifest,
@@ -166,7 +166,7 @@ def _work(
     if deadline - time.monotonic() < _RESERVED_SECONDS:
         return _Outcome(status="deferred")
     try:
-        source_key, entry, row = _process_candidate(candidate, options, toolchain)
+        source_key, entry, row = process_candidate(candidate, options, toolchain)
     except Exception as exc:
         LOGGER.exception(
             "failed to process %s/%s/%s",
@@ -211,7 +211,7 @@ def _discover(
     return candidates, failures
 
 
-def _process_candidate(
+def process_candidate(
     candidate: Candidate,
     options: RunOptions,
     toolchain: Toolchain,

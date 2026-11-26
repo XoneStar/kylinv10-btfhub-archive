@@ -97,6 +97,43 @@ Useful options:
 Exit codes: `0` success, `1` fatal configuration/tool error, `2` one or more
 packages or repositories failed (successful packages are still committed).
 
+## Anolis OS archive
+
+`scripts/update_anolis_btf.py` builds the same `.btf.tar.xz` artifacts from the
+Anolis mirror at `https://mirrors.openanolis.cn/anolis/`:
+
+```
+anolis/
+└── 7.9/
+    ├── manifest-anolis.json
+    ├── x86_64/
+    │   └── 3.10.0-1160.102.1.0.1.an7.x86_64.btf.tar.xz
+    └── arm64/
+        └── 4.18.0-193.28.1.an7.aarch64.btf.tar.xz
+```
+
+Defaults: every numeric VERSION_ID published on the mirror (for example `7.7`,
+`7.9`, `8.2`...`8.10`, `23.0`...`23.5`), architectures `x86_64,aarch64`, and
+all repositories found for each version (`os`/`updates`/`Plus` on 7,
+`BaseOS`/`AppStream`/... on 8, `os`/`updates`/`kernel-6` on 23). Each version
+keeps its own `manifest-anolis.json`.
+
+```bash
+python -I scripts/update_anolis_btf.py --repo-root . --dry-run --max-new 5
+python -I scripts/update_anolis_btf.py --repo-root . --versions 7.9,23.5
+python -I scripts/update_anolis_btf.py --repo-root . --repos BaseOS,AppStream
+```
+
+`--versions all` (the default) auto-discovers version directories, and
+`--repos all` (the default) auto-discovers repositories per version, so the
+different Anolis 7/8/23 layouts need no configuration. Explicit lists still
+work. `--arches`, `--max-new`, `--concurrency`, `--force`, `--work-dir` and the
+report options work as in the Kylin updater.
+
+[`update-anolis-btf.yml`](.github/workflows/update-anolis-btf.yml) runs every
+Monday at **02:00 Asia/Shanghai** (`0 18 * * 0` UTC) with the same inputs and
+failure handling as the Kylin workflow.
+
 ## Notes
 
 - GitHub scheduled workflows are disabled after 60 days without repository

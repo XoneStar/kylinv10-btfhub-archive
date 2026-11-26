@@ -26,6 +26,7 @@ class RunReport:
     deferred: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[dict[str, Any]] = field(default_factory=list)
     failures: list[dict[str, Any]] = field(default_factory=list)
+    artifacts: str = "`kylin/V10/manifest.json` and `kylin/V10/<arch>/*.btf.tar.xz`."
 
     def finish(self) -> None:
         self.finished_at = utc_now()
@@ -114,7 +115,7 @@ class RunReport:
             )
         lines.extend(
             [
-                "Artifacts: `kylin/V10/manifest.json` and `kylin/V10/<arch>/*.btf.tar.xz`.",
+                f"Artifacts: {self.artifacts}",
                 "",
             ]
         )

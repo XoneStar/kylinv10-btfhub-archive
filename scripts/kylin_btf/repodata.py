@@ -5,9 +5,10 @@ from __future__ import annotations
 import gzip
 import logging
 import xml.etree.ElementTree as ET
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from html.parser import HTMLParser
 from io import BytesIO
+from typing import Any
 from urllib.parse import unquote, urljoin, urlparse
 
 from . import config
@@ -141,9 +142,16 @@ def parse_html_listing(html_text: str) -> list[PackageInfo]:
 
 
 def _candidates_from_packages(
-    version: str, arch: str, repo: str, base_url: str, packages: Iterable[PackageInfo]
+    version: str,
+    arch: str,
+    repo: str,
+    base_url: str,
+    packages: Iterable[PackageInfo],
+    *,
+    candidate_factory: Callable[..., Any] = Candidate,
+    allowed_host: str | None = None,
 ) -> list[Candidate]:
-    expected_host = urlparse(config.BASE_URL).netloc
+    expected_host = allowed_host or urlparse(config.BASE_URL).netloc
     result: list[Candidate] = []
     for package in packages:
         package_url = urljoin(base_url, package.href)
@@ -158,7 +166,7 @@ def _candidates_from_packages(
             )
             continue
         try:
-            candidate = Candidate(
+            candidate = candidate_factory(
                 version=version,
                 arch=arch,
                 repo=repo,
@@ -195,14 +203,23 @@ def _from_repodata(base_url: str) -> list[PackageInfo] | None:
 
 
 def fetch_candidates(
-    version: str, arch: str, repo: str, *, timeout: float = config.DEFAULT_HTTP_TIMEOUT
+    version: str,
+    arch: str,
+    repo: str,
+    *,
+    timeout: float = config.DEFAULT_HTTP_TIMEOUT,
+    base_url: str | None = None,
+    candidate_factory: Callable[..., Any] = Candidate,
+    allowed_host: str | None = None,
 ) -> list[Candidate]:
     """Return kernel-debuginfo packages, newest first.
 
     Prefers the repository's primary metadata (compact, includes sha256) and
-    falls back to parsing the nginx directory listing.
+    falls back to parsing the nginx directory listing. ``base_url``,
+    ``candidate_factory`` and ``allowed_host`` let other distributions reuse
+    the parser with their own repository layout.
     """
-    base_url = debug_url(version, arch, repo)
+    base_url = base_url or debug_url(version, arch, repo)
     packages: list[PackageInfo] | None = None
     try:
         packages = _from_repodata(base_url)
@@ -226,7 +243,15 @@ def fetch_candidates(
             return []
         packages = parse_html_listing(html_text)
 
-    candidates = _candidates_from_packages(version, arch, repo, base_url, packages)
+    candidates = _candidates_from_packages(
+        version,
+        arch,
+        repo,
+        base_url,
+        packages,
+        candidate_factory=candidate_factory,
+        allowed_host=allowed_host,
+    )
     candidates.sort(key=lambda item: item.sort_key(), reverse=True)
     LOGGER.info(
         "discovered %d kernel-debuginfo package(s) in %s/%s/%s",

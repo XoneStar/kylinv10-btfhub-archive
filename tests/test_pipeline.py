@@ -39,12 +39,12 @@ def test_pending_candidates_run_in_parallel(tmp_path, monkeypatch):
         }
         return item.source_key, entry, row
 
-    monkeypatch.setattr(pipeline, "_process_candidate", fake_process)
+    monkeypatch.setattr(pipeline, "process_candidate", fake_process)
     items = [candidate(release=f"52.{index}") for index in range(3)]
     options = pipeline.RunOptions(repo_root=tmp_path, concurrency=3)
     report = RunReport()
 
-    manifest = pipeline._process_pending(
+    manifest = pipeline.process_pending(
         items,
         options,
         Manifest.load(tmp_path / "kylin/V10/manifest.json"),
@@ -63,11 +63,11 @@ def test_expired_deadline_defers_everything(tmp_path, monkeypatch):
     def fail_process(item, options, toolchain):
         raise AssertionError("deferred candidates must not be processed")
 
-    monkeypatch.setattr(pipeline, "_process_candidate", fail_process)
+    monkeypatch.setattr(pipeline, "process_candidate", fail_process)
     options = pipeline.RunOptions(repo_root=tmp_path, concurrency=3)
     report = RunReport()
 
-    pipeline._process_pending(
+    pipeline.process_pending(
         [candidate("52.70")],
         options,
         Manifest.load(tmp_path / "kylin/V10/manifest.json"),
